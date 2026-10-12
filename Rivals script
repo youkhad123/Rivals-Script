@@ -1,0 +1,433 @@
+-- PrimeX | Rivals | Delta Mobile | By PrimeX
+local PS=game:GetService("Players")
+local RS=game:GetService("RunService")
+local UIS=game:GetService("UserInputService")
+local TS=game:GetService("TweenService")
+local CG=game:GetService("CoreGui")
+local LP=PS.LocalPlayer
+local CAM=workspace.CurrentCamera
+local gh=rawget(getfenv(),"gethui")
+local hf=rawget(getfenv(),"hookfunction")or rawget(_G,"hookfunction")
+local nc=rawget(getfenv(),"newcclosure")or rawget(_G,"newcclosure")
+local function ncc(f)if nc then local ok,w=pcall(nc,f)if ok and w then return w end end return f end
+local function safe(f,...)pcall(f,...)end
+repeat task.wait(0.5)until game:IsLoaded()
+
+local function par()
+	if gh then local ok,h=pcall(gh)if ok and h then return h end end
+	local ok,h=pcall(function()return CG end)if ok and h then return h end
+	return LP:WaitForChild("PlayerGui")
+end
+local GP=par()
+for _,n in ipairs({"PrimeX_UI","PrimeX_ESP"})do
+	pcall(function()local f=GP:FindFirstChild(n)if f then f:Destroy()end end)
+end
+
+local C={
+	BG=Color3.fromRGB(10,10,16),SURF=Color3.fromRGB(18,18,28),BORDER=Color3.fromRGB(40,40,60),
+	A1=Color3.fromRGB(255,30,30),A2=Color3.fromRGB(255,100,40),GREEN=Color3.fromRGB(30,200,80),
+	RED=Color3.fromRGB(230,50,50),YELLOW=Color3.fromRGB(240,190,50),WHITE=Color3.fromRGB(235,235,255),
+	MUTED=Color3.fromRGB(120,120,155),DIM=Color3.fromRGB(40,40,60),
+}
+
+local Cfg={
+	A=false,AF=300,AS=5,AP=true,AHS=true,ATRIG=false,ASILENT=false,
+	E=false,EBOX=true,EHL=true,EN=true,EH=true,ED=true,ET=true,ECHAMS=true,EM=1500,ETRACE=false,ESKEL=false,
+	FLY=false,FS=60,SPD=false,SV=40,JMP=false,JV=120,NC=false,
+	WB=false,NR=false,INF=false,FOG=false,REACH=false,RV=10,
+}
+
+local function tw(o,p,t)TS:Create(o,TweenInfo.new(t or 0.18,Enum.EasingStyle.Quint,Enum.EasingDirection.Out),p):Play()end
+local function cr(p,r)local c=Instance.new("UICorner")c.CornerRadius=UDim.new(0,r or 10)c.Parent=p return c end
+local function strk(p,col,th)local s=Instance.new("UIStroke")s.Color=col or C.BORDER s.Thickness=th or 1 s.ApplyStrokeMode=Enum.ApplyStrokeMode.Border s.Parent=p return s end
+local function grad(p,c0,c1,r)local g=Instance.new("UIGradient")g.Color=ColorSequence.new(c0,c1)g.Rotation=r or 90 g.Parent=p return g end
+local function w2s(pos)local s,o,z=CAM:WorldToViewportPoint(pos)return Vector2.new(s.X,s.Y),o,z end
+local function enemy(p)
+	if p==LP then return false end
+	if not Cfg.ET then return true end
+	local ok,v=pcall(function()if not LP.Team or not p.Team then return true end return p.Team~=LP.Team end)
+	return ok and v or true
+end
+local function gc(p)return p and p.Character end
+local function grp(p)local c=gc(p)return c and c:FindFirstChild("HumanoidRootPart")end
+local function ghd(p)local c=gc(p)return c and c:FindFirstChild("Head")end
+local function ghum(p)local c=gc(p)return c and c:FindFirstChildOfClass("Humanoid")end
+local function gdist(p)local r=grp(p)if not r then return 99999 end return(r.Position-CAM.CFrame.Position).Magnitude end
+
+-- WALLBANG
+if hf then
+	safe(function()
+		local oR=workspace.Raycast
+		hf(workspace,"Raycast",ncc(function(s,o,d,pr)
+			if Cfg.WB and pr then
+				local ex={workspace}
+				if LP.Character then table.insert(ex,LP.Character)end
+				local np=RaycastParams.new()np.FilterType=Enum.RaycastFilterType.Exclude
+				np.FilterDescendantsInstances=ex np.IgnoreWater=pr.IgnoreWater
+				local r=oR(workspace,o,d,np)
+				if r and r.Instance then
+					for _,pl in ipairs(PS:GetPlayers())do
+						if pl.Character and r.Instance:IsDescendantOf(pl.Character)then return r end
+					end
+				end
+				return r or oR(workspace,o,d,pr)
+			end
+			return oR(workspace,o,d,pr)
+		end))
+	end)
+	safe(function()
+		if CAM.GetPartsObscuringTarget then
+			local oG=CAM.GetPartsObscuringTarget
+			hf(CAM,"GetPartsObscuringTarget",ncc(function(s,pos,list)
+				if Cfg.WB then return{}end
+				return oG(CAM,pos,list)
+			end))
+		end
+	end)
+end
+
+-- ESP
+local ESG=Instance.new("ScreenGui")
+ESG.Name="PrimeX_ESP" ESG.ResetOnSpawn=false ESG.IgnoreGuiInset=true
+ESG.DisplayOrder=998 ESG.ZIndexBehavior=Enum.ZIndexBehavior.Sibling ESG.Parent=GP
+
+local EC={}
+local BONES={
+	{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
+	{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
+	{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
+	{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
+	{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},
+}
+
+local function dsp(p)
+	local c=EC[p] if not c then return end
+	for _,v in pairs(c)do pcall(function()v:Destroy()end)end EC[p]=nil
+end
+
+local function bsp(p)
+	dsp(p)
+	local ch=gc(p) if not ch then return end
+	local c={}
+	local hl=Instance.new("Highlight")
+	hl.FillColor=Color3.fromRGB(255,30,30) hl.OutlineColor=C.A2
+	hl.FillTransparency=0.65 hl.OutlineTransparency=0.1
+	hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Adornee=ch hl.Enabled=false hl.Parent=ch c.hl=hl
+	local box=Instance.new("Frame",ESG)
+	box.BackgroundTransparency=1 box.BorderSizePixel=0 box.Visible=false c.box=box
+	local function ml()local l=Instance.new("Frame",box)l.BackgroundColor3=C.A1 l.BorderSizePixel=0 return l end
+	c.t=ml()c.b=ml()c.l=ml()c.r=ml()
+	local function mkb(anch,px,py,sx,sy)
+		local f=Instance.new("Frame",box)f.AnchorPoint=anch f.Position=UDim2.new(px,0,py,0)
+		f.Size=UDim2.new(0,sx,0,sy) f.BackgroundColor3=C.A2 f.BorderSizePixel=0 return f
+	end
+	c.corners={
+		mkb(Vector2.new(0,0),0,0,8,2),mkb(Vector2.new(0,0),0,0,2,8),
+		mkb(Vector2.new(1,0),1,0,8,2),mkb(Vector2.new(1,0),1,0,2,8),
+		mkb(Vector2.new(0,1),0,1,8,2),mkb(Vector2.new(0,1),0,1,2,8),
+		mkb(Vector2.new(1,1),1,1,8,2),mkb(Vector2.new(1,1),1,1,2,8),
+	}
+	local nl=Instance.new("TextLabel",ESG)
+	nl.BackgroundTransparency=1 nl.TextColor3=C.WHITE nl.TextStrokeTransparency=0
+	nl.TextStrokeColor3=Color3.new(0,0,0) nl.Font=Enum.Font.GothamBold nl.TextSize=11 nl.Visible=false c.nl=nl
+	local hpb=Instance.new("Frame",ESG)hpb.BackgroundColor3=C.DIM hpb.BorderSizePixel=0 hpb.Visible=false c.hpb=hpb cr(hpb,2)
+	local hpf=Instance.new("Frame",hpb)hpf.BackgroundColor3=C.GREEN hpf.BorderSizePixel=0 hpf.Size=UDim2.new(1,0,1,0) cr(hpf,2) c.hpf=hpf
+	local dl=Instance.new("TextLabel",ESG)
+	dl.BackgroundTransparency=1 dl.TextColor3=C.MUTED dl.TextStrokeTransparency=0
+	dl.TextStrokeColor3=Color3.new(0,0,0) dl.Font=Enum.Font.Gotham dl.TextSize=10 dl.Visible=false c.dl=dl
+	local tr=Instance.new("Frame",ESG)
+	tr.BackgroundColor3=C.A1 tr.BorderSizePixel=0 tr.AnchorPoint=Vector2.new(0,0.5) tr.Visible=false c.tr=tr
+	c.skelLines={}
+	for i=1,#BONES do
+		local ln=Instance.new("Frame",ESG)ln.BackgroundColor3=Color3.new(1,1,1)
+		ln.BorderSizePixel=0 ln.AnchorPoint=Vector2.new(0,0.5) ln.Visible=false c.skelLines[i]=ln
+	end
+	c.ch=ch EC[p]=c
+end
+
+local function setLine(f,x1,y1,x2,y2,thick,col)
+	local dx,dy=x2-x1,y2-y1 local len=math.sqrt(dx*dx+dy*dy)
+	if len<1 then f.Visible=false return end
+	f.Size=UDim2.new(0,len,0,thick or 1) f.Position=UDim2.new(0,x1,0,y1)
+	f.Rotation=math.deg(math.atan2(dy,dx)) if col then f.BackgroundColor3=col end f.Visible=true
+end
+
+local function usp()
+	if not Cfg.E then
+		for p in pairs(EC)do local c=EC[p] if c then
+			if c.box then c.box.Visible=false end if c.hl then c.hl.Enabled=false end
+			if c.nl then c.nl.Visible=false end if c.hpb then c.hpb.Visible=false end
+			if c.dl then c.dl.Visible=false end if c.tr then c.tr.Visible=false end
+			if c.skelLines then for _,l in ipairs(c.skelLines)do l.Visible=false end end
+		end end return
+	end
+	for _,p in ipairs(PS:GetPlayers())do
+		if p~=LP then
+			local c=EC[p]
+			if not c or c.ch~=p.Character then if p.Character and ghd(p)then bsp(p)c=EC[p]end end
+			if c then
+				local ch=p.Character local hrp=grp(p) local head=ghd(p) local dist=gdist(p)
+				local vis=enemy(p)and ch and hrp and head and dist<=Cfg.EM
+				if not vis then
+					if c.box then c.box.Visible=false end if c.hl then c.hl.Enabled=false end
+					if c.nl then c.nl.Visible=false end if c.hpb then c.hpb.Visible=false end
+					if c.dl then c.dl.Visible=false end if c.tr then c.tr.Visible=false end
+					if c.skelLines then for _,l in ipairs(c.skelLines)do l.Visible=false end end
+				else
+					local tp,ton=w2s(head.Position+Vector3.new(0,0.65,0))
+					local bp,bon=w2s(hrp.Position-Vector3.new(0,3,0))
+					if ton and bon then
+						local h=math.abs(bp.Y-tp.Y) local w=h*0.55 local cx=(tp.X+bp.X)/2
+						local bx=cx-w/2 local by=tp.Y
+						if Cfg.EBOX then
+							c.box.Visible=true c.box.Position=UDim2.new(0,bx,0,by) c.box.Size=UDim2.new(0,w,0,h)
+							c.t.Position=UDim2.new(0,0,0,0) c.t.Size=UDim2.new(1,0,0,2)
+							c.b.Position=UDim2.new(0,0,1,-2) c.b.Size=UDim2.new(1,0,0,2)
+							c.l.Position=UDim2.new(0,0,0,0) c.l.Size=UDim2.new(0,2,1,0)
+							c.r.Position=UDim2.new(1,-2,0,0) c.r.Size=UDim2.new(0,2,1,0)
+							for _,co in ipairs(c.corners)do co.Parent=c.box end
+						else c.box.Visible=false end
+						if c.hl then c.hl.Enabled=Cfg.ECHAMS end
+						if c.nl then c.nl.Visible=Cfg.EN if Cfg.EN then c.nl.Text=p.Name.." ["..math.floor(dist).."m]" c.nl.Size=UDim2.new(0,220,0,13) c.nl.Position=UDim2.new(0,cx-110,0,by-15) end end
+						if c.hpb then c.hpb.Visible=Cfg.EH if Cfg.EH then
+							local hum=ghum(p) local rat=hum and math.clamp(hum.Health/math.max(hum.MaxHealth,1),0,1)or 1
+							c.hpb.Size=UDim2.new(0,3,0,h) c.hpb.Position=UDim2.new(0,bx-6,0,by)
+							c.hpf.Size=UDim2.new(1,0,rat,0) c.hpf.Position=UDim2.new(0,0,1-rat,0)
+							c.hpf.BackgroundColor3=rat>0.6 and C.GREEN or rat>0.3 and C.YELLOW or C.RED
+						end end
+						if c.dl then c.dl.Visible=Cfg.ED if Cfg.ED then c.dl.Text=math.floor(dist).."m" c.dl.Size=UDim2.new(0,80,0,12) c.dl.Position=UDim2.new(0,cx-40,0,by+h+2) end end
+						if c.tr then c.tr.Visible=Cfg.ETRACE if Cfg.ETRACE then
+							local vp=CAM.ViewportSize local bx2,by2=bp.X,bp.Y local ox,oy=vp.X/2,vp.Y
+							local dx2,dy2=bx2-ox,by2-oy local len=math.sqrt(dx2*dx2+dy2*dy2)
+							c.tr.Size=UDim2.new(0,len,0,1) c.tr.Position=UDim2.new(0,ox,0,oy) c.tr.Rotation=math.deg(math.atan2(dy2,dx2))
+						end end
+						if Cfg.ESKEL and c.skelLines then
+							for i,pair in ipairs(BONES)do
+								local ln=c.skelLines[i]
+								if ch then
+									local p1=ch:FindFirstChild(pair[1]) local p2=ch:FindFirstChild(pair[2])
+									if p1 and p2 then
+										local s1,o1=w2s(p1.Position) local s2,o2=w2s(p2.Position)
+										if o1 and o2 then setLine(ln,s1.X,s1.Y,s2.X,s2.Y,1,C.WHITE) else ln.Visible=false end
+									else ln.Visible=false end
+								else ln.Visible=false end
+							end
+						elseif c.skelLines then for _,l in ipairs(c.skelLines)do l.Visible=false end end
+					end
+				end
+			end
+		end
+	end
+end
+
+for _,p in ipairs(PS:GetPlayers())do if p~=LP then safe(bsp,p)end end
+PS.PlayerAdded:Connect(function(p)task.wait(1.5)safe(bsp,p)end)
+PS.PlayerRemoving:Connect(dsp)
+
+-- AIMBOT
+local function getBest()
+	local vp=CAM.ViewportSize local ctr=Vector2.new(vp.X/2,vp.Y/2)
+	local best,bd=nil,Cfg.AF
+	for _,p in ipairs(PS:GetPlayers())do
+		if p~=LP and enemy(p)and gdist(p)<=2000 then
+			local ch=gc(p)
+			local part=Cfg.AHS and(ch and ch:FindFirstChild("Head"))or(ch and ch:FindFirstChild("HumanoidRootPart"))
+			if part then
+				local sp,os,depth=w2s(part.Position)
+				if os and depth>0 then local dd=(sp-ctr).Magnitude if dd<bd then bd=dd best=p end end
+			end
+		end
+	end
+	return best
+end
+
+local function doAim()
+	if not Cfg.A then return end
+	local t=getBest() if not t then return end
+	safe(function()
+		local ch=gc(t)
+		local part=Cfg.AHS and(ch and ch:FindFirstChild("Head"))or(ch and ch:FindFirstChild("HumanoidRootPart"))
+		if not part then return end
+		local pos=part.Position
+		if Cfg.AP then local hrp=grp(t) if hrp then pos=pos+hrp.AssemblyLinearVelocity*(gdist(t)/700)end end
+		if Cfg.ASILENT then CAM.CFrame=CFrame.lookAt(CAM.CFrame.Position,pos)
+		else local cf=CAM.CFrame CAM.CFrame=cf:Lerp(CFrame.lookAt(cf.Position,pos),1/math.max(Cfg.AS,1))end
+	end)
+end
+
+local function doTrig()
+	if not Cfg.ATRIG then return end
+	safe(function()
+		local t=getBest() if not t then return end
+		local head=ghd(t) if not head then return end
+		local sp,os,depth=w2s(head.Position)
+		if not os or depth<=0 then return end
+		local vp=CAM.ViewportSize local ctr=Vector2.new(vp.X/2,vp.Y/2)
+		if(sp-ctr).Magnitude<25 then
+			pcall(function()
+				game:GetService("VirtualInputManager"):SendMouseButtonEvent(vp.X/2,vp.Y/2,0,true,game,0)
+				task.wait(0.05)
+				game:GetService("VirtualInputManager"):SendMouseButtonEvent(vp.X/2,vp.Y/2,0,false,game,0)
+			end)
+		end
+	end)
+end
+
+-- FLY
+local FBV,FC=nil,nil
+local function startFly()
+	local ch=LP.Character if not ch then return end
+	local r=ch:FindFirstChild("HumanoidRootPart") local h=ch:FindFirstChildOfClass("Humanoid")
+	if not r or not h then return end h.PlatformStand=true
+	if FBV then FBV:Destroy()end
+	FBV=Instance.new("BodyVelocity")FBV.MaxForce=Vector3.new(1e9,1e9,1e9)FBV.Velocity=Vector3.zero FBV.Parent=r
+	if FC then FC:Disconnect()end
+	FC=RS.RenderStepped:Connect(function()
+		if not Cfg.FLY or not FBV or not FBV.Parent then return end
+		local s=Cfg.FS local cf=CAM.CFrame local v=Vector3.zero
+		if UIS:IsKeyDown(Enum.KeyCode.W)then v+=cf.LookVector*s end
+		if UIS:IsKeyDown(Enum.KeyCode.S)then v-=cf.LookVector*s end
+		if UIS:IsKeyDown(Enum.KeyCode.A)then v-=cf.RightVector*s end
+		if UIS:IsKeyDown(Enum.KeyCode.D)then v+=cf.RightVector*s end
+		if UIS:IsKeyDown(Enum.KeyCode.Space)then v+=Vector3.new(0,s,0)end
+		if UIS:IsKeyDown(Enum.KeyCode.LeftShift)then v-=Vector3.new(0,s,0)end
+		FBV.Velocity=v
+	end)
+end
+local function stopFly()
+	if FC then FC:Disconnect()FC=nil end if FBV then FBV:Destroy()FBV=nil end
+	local ch=LP.Character if ch then local h=ch:FindFirstChildOfClass("Humanoid")if h then h.PlatformStand=false end end
+end
+
+-- UI
+local SG=Instance.new("ScreenGui")
+SG.Name="PrimeX_UI" SG.ResetOnSpawn=false SG.IgnoreGuiInset=true
+SG.DisplayOrder=999 SG.ZIndexBehavior=Enum.ZIndexBehavior.Sibling SG.Parent=GP
+
+local W,H=420,480
+local Card=Instance.new("Frame",SG)
+Card.Size=UDim2.new(0,W,0,H) Card.Position=UDim2.new(0.5,-W/2,0.5,-H/2)
+Card.BackgroundColor3=C.BG Card.BorderSizePixel=0 Card.Active=true
+cr(Card,16) strk(Card,C.BORDER,1.5)
+
+local accent=Instance.new("Frame",Card)
+accent.Size=UDim2.new(1,0,0,3) accent.BackgroundColor3=C.A1 accent.BorderSizePixel=0
+cr(accent,16) grad(accent,C.A1,C.A2,0)
+
+local HDR=Instance.new("Frame",Card)
+HDR.Size=UDim2.new(1,0,0,76) HDR.BackgroundColor3=C.SURF HDR.BorderSizePixel=0 cr(HDR,16) strk(HDR,C.BORDER,1)
+
+local iconF=Instance.new("Frame",HDR)
+iconF.Size=UDim2.new(0,40,0,40) iconF.AnchorPoint=Vector2.new(0,0.5) iconF.Position=UDim2.new(0,16,0.5,0)
+iconF.BackgroundColor3=C.A1 iconF.BorderSizePixel=0 cr(iconF,10) grad(iconF,C.A1,C.A2,135)
+local iconTxt=Instance.new("TextLabel",iconF)
+iconTxt.Size=UDim2.fromScale(1,1) iconTxt.BackgroundTransparency=1
+iconTxt.Text="PX" iconTxt.Font=Enum.Font.GothamBold iconTxt.TextSize=16 iconTxt.TextColor3=Color3.new(1,1,1)
+
+local titleL=Instance.new("TextLabel",HDR)
+titleL.Size=UDim2.new(1,-120,0,22) titleL.Position=UDim2.new(0,66,0,14)
+titleL.BackgroundTransparency=1 titleL.Text="PrimeX" titleL.Font=Enum.Font.GothamBold
+titleL.TextSize=19 titleL.TextColor3=C.WHITE titleL.TextXAlignment=Enum.TextXAlignment.Left
+
+local subL=Instance.new("TextLabel",HDR)
+subL.Size=UDim2.new(1,-120,0,14) subL.Position=UDim2.new(0,66,0,40)
+subL.BackgroundTransparency=1 subL.Text="RIVALS  ·  MADE BY PRIMEX"
+subL.Font=Enum.Font.GothamBold subL.TextSize=9 subL.TextColor3=C.MUTED subL.TextXAlignment=Enum.TextXAlignment.Left
+
+local function mkWBtn(txt,xOff,col)
+	local b=Instance.new("TextButton",HDR)
+	b.Size=UDim2.new(0,24,0,24) b.Position=UDim2.new(1,xOff,0.5,-12)
+	b.BackgroundColor3=col b.Text=txt b.TextColor3=C.WHITE
+	b.Font=Enum.Font.GothamBold b.TextSize=13 b.BorderSizePixel=0 b.AutoButtonColor=false
+	cr(b,7) strk(b,C.BORDER,1) return b
+end
+local MinBtn=mkWBtn("−",-58,C.SURF) local ClsBtn=mkWBtn("×",-30,C.SURF)
+
+local TABS={"AIM","ESP","MOVE","MISC"}
+local TabBar=Instance.new("Frame",Card)
+TabBar.Size=UDim2.new(1,-24,0,30) TabBar.Position=UDim2.new(0,12,0,82)
+TabBar.BackgroundColor3=C.SURF TabBar.BorderSizePixel=0 cr(TabBar,10) strk(TabBar,C.BORDER,1)
+local TBL=Instance.new("UIListLayout",TabBar)
+TBL.FillDirection=Enum.FillDirection.Horizontal TBL.HorizontalAlignment=Enum.HorizontalAlignment.Center
+TBL.VerticalAlignment=Enum.VerticalAlignment.Center TBL.Padding=UDim.new(0,4)
+
+local CONT=Instance.new("ScrollingFrame",Card)
+CONT.Size=UDim2.new(1,-24,1,-128) CONT.Position=UDim2.new(0,12,0,118)
+CONT.BackgroundTransparency=1 CONT.BorderSizePixel=0
+CONT.ScrollBarThickness=2 CONT.ScrollBarImageColor3=C.A1
+CONT.CanvasSize=UDim2.new(0,0,0,2000) CONT.ScrollingEnabled=true
+
+local Pages={}
+local function mkPage(name)
+	local f=Instance.new("Frame",CONT)
+	f.Size=UDim2.new(1,0,0,2000) f.Position=UDim2.new(0,0,0,0)
+	f.BackgroundTransparency=1 f.Visible=false
+	local l=Instance.new("UIListLayout",f)l.Padding=UDim.new(0,5)l.SortOrder=Enum.SortOrder.LayoutOrder
+	Pages[name]=f
+end
+for _,t in ipairs(TABS)do mkPage(t)end
+
+local TabBtns={} local CurTab="AIM"
+local function setTab(name)
+	CurTab=name
+	for n,btn in pairs(TabBtns)do
+		local a=(n==name)
+		tw(btn,{BackgroundColor3=a and C.A1 or Color3.fromRGB(0,0,0)},0.12)
+		btn.TextColor3=a and C.WHITE or C.MUTED Pages[n].Visible=a
+	end
+	CONT.CanvasPosition=Vector2.new(0,0)
+end
+
+for i,name in ipairs(TABS)do
+	local b=Instance.new("TextButton",TabBar)
+	b.Size=UDim2.new(0,88,1,-6) b.BackgroundColor3=Color3.fromRGB(0,0,0)
+	b.Text=name b.TextColor3=C.MUTED b.Font=Enum.Font.GothamBold b.TextSize=10
+	b.BorderSizePixel=0 b.AutoButtonColor=false b.LayoutOrder=i cr(b,8)
+	b.MouseButton1Click:Connect(function()setTab(name)end)
+	TabBtns[name]=b
+end
+
+local function hdr(par,txt,order)
+	local f=Instance.new("Frame",par)f.Size=UDim2.new(1,0,0,20)f.BackgroundTransparency=1 f.LayoutOrder=order or 0
+	local l=Instance.new("TextLabel",f)l.Size=UDim2.fromScale(1,1)l.BackgroundTransparency=1
+	l.Text="  "..txt l.TextColor3=C.A1 l.Font=Enum.Font.GothamBold l.TextSize=10 l.TextXAlignment=Enum.TextXAlignment.Left
+end
+
+local ROW=0
+local function tgl(par,label,default,cb)
+	ROW=ROW+1
+	local row=Instance.new("Frame",par)
+	row.Size=UDim2.new(1,0,0,32)row.BackgroundColor3=C.SURF row.BorderSizePixel=0 row.LayoutOrder=ROW
+	cr(row,9)strk(row,C.BORDER,1)
+	local lbl=Instance.new("TextLabel",row)
+	lbl.Size=UDim2.new(1,-60,1,0)lbl.Position=UDim2.new(0,12,0,0)lbl.BackgroundTransparency=1
+	lbl.Text=label lbl.TextColor3=C.WHITE lbl.Font=Enum.Font.GothamSemibold lbl.TextSize=11 lbl.TextXAlignment=Enum.TextXAlignment.Left
+	local track=Instance.new("Frame",row)
+	track.Size=UDim2.new(0,38,0,18)track.Position=UDim2.new(1,-50,0.5,-9)
+	track.BackgroundColor3=default and C.A1 or C.DIM track.BorderSizePixel=0 cr(track,9)
+	if default then grad(track,C.A1,C.A2,0)end
+	local knob=Instance.new("Frame",track)
+	knob.Size=UDim2.new(0,14,0,14)
+	knob.Position=default and UDim2.new(1,-16,0.5,-7)or UDim2.new(0,2,0.5,-7)
+	knob.BackgroundColor3=C.WHITE knob.BorderSizePixel=0 cr(knob,7)
+	local on=default
+	local hit=Instance.new("TextButton",row)hit.Size=UDim2.fromScale(1,1)hit.BackgroundTransparency=1 hit.Text=""
+	hit.MouseButton1Click:Connect(function()
+		on=not on
+		tw(track,{BackgroundColor3=on and C.A1 or C.DIM},0.13)
+		tw(knob,{Position=on and UDim2.new(1,-16,0.5,-7)or UDim2.new(0,2,0.5,-7)},0.13)
+		if cb then cb(on)end
+	end)
+end
+
+local function sld(par,label,mn,mx,default,cb)
+	ROW=ROW+1
+	local row=Instance.new("Frame",par)
+	row.Size=UDim2.new(1,0,0,42)row.BackgroundColor3=C.SURF row.BorderSizePixel=0 row.LayoutOrder=ROW
+	cr(row,9)strk(row,C.BORDER,1)
+	local lbl=Instance.new("TextLabel",row)
+	lbl.Size=UDim2.new(1,-20,0,14)lbl.Position=UDim2.new(0,12,0,5)lbl.BackgroundTransparency=1
+	lbl.Text=label..": "..default lbl.TextColor3=C.WHITE lbl.Font=Enum.Font.GothamSemibold lbl.TextSize=10 lbl.TextXAlignment=Enum.TextXAlignment.Left
+	local bar=Instance.new("Frame",row)
+	bar.Size=UDim2.new(1,-24,0,6)bar.Position=UDim2.new(0,12,
